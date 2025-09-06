@@ -1,0 +1,5 @@
+{
+  "name": "Estúdio de Produto AI",
+  "description": "Um aplicativo que usa IA para gerar fotos de produtos profissionais com modelos, projetado para pequenos empreendedores. Faça o upload de uma foto do produto, escolha as características do modelo e obtenha quatro imagens prontas para marketing.",
+  "requestFramePermissions": []
+}

@@ -66,8 +66,12 @@ export const generateProductPhotos = async (
         return '';
     }).filter(data => data);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini API Error:", error);
+    const raw = typeof error?.message === 'string' ? error.message : '';
+    if (raw.includes('API key not valid') || raw.includes('API_KEY_INVALID')) {
+      throw new Error('Chave de API inválida ou não habilitada para o Gemini. Verifique GEMINI_API_KEY no .env.local e se a API está habilitada no Google AI Studio.');
+    }
     throw new Error('Falha ao gerar imagens. A imagem pode ser inadequada ou houve um problema de conexão. Por favor, tente novamente.');
   }
 };

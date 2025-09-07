@@ -1,5 +1,6 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { Header } from './components/Header';
 import { ImageUpload } from './components/ImageUpload';
 import { ModelSelector } from './components/ModelSelector';
@@ -8,15 +9,50 @@ import { Loader } from './components/Loader';
 import type { UploadedImage, ModelConfig } from './types';
 import { generateProductPhotos } from './services/geminiService';
 import { ArrowPathIcon } from './components/IconComponents';
+import { AuthForms } from './components/AuthForms';
+import { getCurrentUser, logout } from './services/authService';
+import { Layout } from './components/Layout';
+import { StudioPage, StudioStep } from './pages/StudioPage';
+import { GalleryPage } from './pages/GalleryPage';
+import { AccountPage } from './pages/AccountPage';
+import { saveGeneratedImages } from './services/galleryService';
 
-type AppStep = 'UPLOAD' | 'CONFIGURE' | 'GENERATING' | 'RESULTS' | 'ERROR';
+interface CurrentUser { id: number; name: string; email: string; }
 
 export default function App() {
-  const [step, setStep] = useState<AppStep>('UPLOAD');
+  return (
+    <BrowserRouter>
+      <AppInner />
+    </BrowserRouter>
+  );
+}
+
+function AppInner() {
+  const [user, setUser] = useState<CurrentUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [step, setStep] = useState<StudioStep>('UPLOAD');
   const [uploadedImage, setUploadedImage] = useState<UploadedImage | null>(null);
   const [modelConfig, setModelConfig] = useState<ModelConfig>({ age: 18, gender: 'Feminino' });
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const u = await getCurrentUser();
+      setUser(u);
+      setAuthLoading(false);
+    })();
+  }, []);
+
+  const handleAuthenticated = async () => {
+    const u = await getCurrentUser();
+    setUser(u);
+  };
+
+  const handleLogout = () => {
+    logout();
+    setUser(null);
+  };
 
   const handleImageUpload = (image: UploadedImage) => {
     setUploadedImage(image);
@@ -41,6 +77,13 @@ export default function App() {
     try {
       const images = await generateProductPhotos(uploadedImage, modelConfig);
       setGeneratedImages(images);
+      // salvar na galeria
+      try { await saveGeneratedImages(images); }
+      catch (e) {
+        console.warn('Falha ao salvar galeria', e);
+        // Aviso discreto; não bloqueia fluxo principal
+        setError('Imagens geradas, mas falha ao salvar na galeria. Você ainda pode baixá-las agora.');
+      }
       setStep('RESULTS');
     } catch (err) {
       console.error(err);
@@ -121,17 +164,21 @@ export default function App() {
     }
   };
 
+  if (authLoading) {
+    return <div className="min-h-screen flex items-center justify-center text-slate-500">Carregando...</div>;
+  }
+
+  if (!user) {
+    return <AuthForms onAuthenticated={handleAuthenticated} />;
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 antialiased">
-      <Header />
-      <main className="container mx-auto px-4 py-8 sm:py-16">
-        <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl p-6 sm:p-10 border border-slate-100">
-          {renderStep()}
-        </div>
-      </main>
-      <footer className="text-center py-6 text-slate-400 text-sm">
-        <p>Criado com ❤️ para pequenos empreendedores.</p>
-      </footer>
-    </div>
+    <Layout userName={user.name} onLogout={handleLogout}>
+      <Routes>
+        <Route path="/" element={<StudioPage step={step} uploadedImage={uploadedImage} modelConfig={modelConfig} generatedImages={generatedImages} error={error} onImageUpload={handleImageUpload} onConfigChange={handleConfigChange} onGenerate={handleGenerateClick} onReset={handleReset} />} />
+        <Route path="/galeria" element={<GalleryPage />} />
+        <Route path="/conta" element={<AccountPage user={user} onLogout={handleLogout} />} />
+      </Routes>
+    </Layout>
   );
 }

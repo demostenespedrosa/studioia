@@ -9,13 +9,36 @@ interface GeneratedImagesProps {
 export const GeneratedImages: React.FC<GeneratedImagesProps> = ({ images }) => {
     
   const handleDownload = (base64Image: string, index: number) => {
-    const link = document.createElement('a');
-    link.href = `data:image/png;base64,${base64Image}`;
-    link.download = `produto-profissional-${index + 1}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const blob = b64ToBlob(base64Image, 'image/png');
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `produto-profissional-${index + 1}.png`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      // fallback
+      const link = document.createElement('a');
+      link.href = `data:image/png;base64,${base64Image}`;
+      link.download = `produto-profissional-${index + 1}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
+
+  function b64ToBlob(b64: string, mime = 'application/octet-stream') {
+    const byteChars = atob(b64);
+    const byteNumbers = new Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) {
+      byteNumbers[i] = byteChars.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: mime });
+  }
     
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
